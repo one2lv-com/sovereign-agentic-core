@@ -18,12 +18,13 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from core import LumenisReactor, FluxCompass, ITTCouncil, MatonBridge, VanguardNodePool
+from core import LumenisReactor, NvidiaReactor, FluxCompass, ITTCouncil, MatonBridge, VanguardNodePool
 
 # ── Global instances ──────────────────────────────────────────────────────────
 reactor = LumenisReactor()
+nvidia  = NvidiaReactor()
 compass = FluxCompass()
-bridge = MatonBridge()
+bridge  = MatonBridge()
 council = ITTCouncil(reactor, compass)
 node_pool = VanguardNodePool()
 
@@ -83,6 +84,7 @@ async def status():
     from core.itt import SEATS
     return {
         "reactor": reactor.get_status(),
+        "nvidia": nvidia.get_status(),
         "nodes": node_pool.get_status(),
         "compass": compass.get_stats(),
         "maton": bridge.get_status(),
