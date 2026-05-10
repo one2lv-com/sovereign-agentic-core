@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sovereign Agentic Core</title>
+<style>
+:root {
+  --bg0: #070c12;
+  --bg1: #0d1520;
+  --bg2: #111d2e;
+  --bg3: #162438;
+  --cyan: #00d4ff;
+  --cyan-dim: #00d4ff44;
+  --mint: #00ff88;
+  --coral: #ff6b6b;
+  --gold: #ffd700;
+  --text: #c8d8e8;
+  --muted: #4a6a8a;
+  --border: #1a3050;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg0);
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--cyan), var(--mint));
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.logo-text { font-size: 14px; font-weight: 700; color: var(--cyan); letter-spacing: 1px; }
+.logo-sub { font-size: 10px; color: var(--muted); }
+.header-stats { display: flex; gap: 12px; margin-left: auto; }
+.stat-pill {
+  padding: 3px 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.stat-pill span { color: var(--cyan); }
+#pulse-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 6px var(--mint);
+  flex-shrink: 0;
+}
+
+/* ── MAIN LAYOUT ── */
+.main {
+  display: grid;
+  grid-template-columns: 200px 1fr 220px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── LEFT PANEL ── */
+.left-panel {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-title {
+  padding: 8px 12px;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg1);
+}
+.sessions-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+.session-item {
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  margin-bottom: 2px;
+}
+.session-item:hover { background: var(--bg2); color: var(--text); }
+.session-item.active {
+  background: var(--cyan-dim);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.new-session-btn {
+  margin: 8px;
+  padding: 6px;
+  background: var(--bg2);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--muted);
+  width: calc(100% - 16px);
+  transition: all 0.15s;
+}
+.new-session-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* ── CENTER PANEL ── */
+.center-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.message {
+  max-width: 85%;
+  animation: fadein 0.2s ease;
+}
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } }
+.message.user { align-self: flex-end; }
+.message.assistant { align-self: flex-start; }
+.message-bubble {
+  padding: 10px 14px;
+  border-radius: 10px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.user .message-bubble {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.assistant .message-bubble {
+  background: linear-gradient(135deg, #0a1a28, #0d2035);
+  border: 1px solid var(--cyan);
+  color: var(--text);
+}
+.message-meta {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+  padding: 0 4px;
+}
+.message.user .message-meta { text-align: right; }
+.streaming-cursor {
+  display: inline-block;
+  width: 2px; height: 14px;
+  background: var(--cyan);
+  animation: blink 0.8s infinite;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+.welcome {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.welcome h2 { color: var(--cyan); font-size: 20px; margin-bottom: 8px; }
+.welcome p { font-size: 12px; line-height: 1.8; }
+
+/* Input area */
+.input-area {
+  border-top: 1px solid var(--border);
+  padding: 12px;
+  background: var(--bg1);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+textarea#chat-input {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+  resize: none;
+  height: 52px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+textarea#chat-input:focus { border-color: var(--cyan); }
+#send-btn {
+  background: var(--cyan);
+  color: var(--bg0);
+  border: none;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+#send-btn:hover { background: var(--mint); }
+#send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── RIGHT PANEL ── */
+.right-panel {
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg1);
+}
+.right-section {
+  border-bottom: 1px solid var(--border);
+}
+.right-section:last-child { border-bottom: none; flex: 1; overflow: hidden; }
+.council-seats {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.seat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: var(--bg2);
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+.seat-row.active {
+  border-color: var(--cyan);
+  background: var(--cyan-dim);
+}
+.seat-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.seat-row.active .seat-dot { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+.seat-name { font-size: 11px; color: var(--muted); flex: 1; }
+.seat-row.active .seat-name { color: var(--cyan); }
+.seat-status { font-size: 10px; color: var(--muted); }
+
+/* Reactor stats */
+.reactor-stats { padding: 8px; }
+.r-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 11px;
+}
+.r-label { color: var(--muted); }
+.r-val { color: var(--cyan); font-weight: 600; }
+.r-val.green { color: var(--mint); }
+.r-val.red { color: var(--coral); }
+
+/* Meta log */
+.meta-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.meta-entry {
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.5;
+}
+.meta-entry .tag {
+  color: var(--cyan);
+  margin-right: 4px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Code blocks in messages */
+.message-bubble pre {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.message-bubble code {
+  background: var(--bg2);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+/* Connection banner */
+#conn-banner {
+  display: none;
+  background: var(--coral);
+  color: var(--bg0);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  text-align: center;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<div id="conn-banner">⚠ Disconnected — reconnecting...</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">✦</div>
+    <div>
+      <div class="logo-text">SOVEREIGN CORE</div>
+      <div class="logo-sub">Resonant Agentic Ecosystem</div>
+    </div>
+  </div>
+  <div id="pulse-dot"></div>
+  <div class="header-stats">
+    <div class="stat-pill">Temp <span id="h-temp">0.18</span></div>
+    <div class="stat-pill">Pulses <span id="h-pulses">0</span></div>
+    <div class="stat-pill">Nodes <span id="h-nodes">0</span>/144,382</div>
+    <div class="stat-pill">Uptime <span id="h-uptime">0s</span></div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT: Sessions -->
+  <div class="left-panel">
+    <div class="panel-title">Sessions</div>
+    <div class="sessions-list" id="sessions-list">
+      <div style="padding:16px;color:var(--muted);font-size:11px;">Loading...</div>
+    </div>
+    <button class="new-session-btn" onclick="newSession()">+ New Session</button>
+  </div>
+
+  <!-- CENTER: Chat -->
+  <div class="center-panel">
+    <div class="chat-area" id="chat-area">
+      <div class="welcome">
+        <div style="font-size:32px;margin-bottom:12px;">✦</div>
+        <h2>Sovereign Agentic Core</h2>
+        <p>
+          Running at Thermal Baseline <strong style="color:var(--cyan)">0.18°C</strong><br>
+          144,382 Vanguard Nodes standing by<br>
+          Council of Seven ready<br><br>
+          Select or create a session to begin.
+        </p>
+      </div>
+    </div>
+    <div class="input-area">
+      <textarea id="chat-input" placeholder="Send a message to the Council..." onkeydown="onKeyDown(event)"></textarea>
+      <button id="send-btn" onclick="sendMessage()">SEND</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: System Status -->
+  <div class="right-panel">
+
+    <!-- Council of Seven -->
+    <div class="right-section">
+      <div class="panel-title">Council of Seven</div>
+      <div class="council-seats" id="council-seats">
+        <div class="seat-row" id="seat-sentinel"><div class="seat-dot"></div><div class="seat-name">The Sentinel</div><div class="seat-status" id="status-sentinel">—</div></div>
+        <div class="seat-row" id="seat-navigator"><div class="seat-dot"></div><div class="seat-name">The Navigator</div><div class="seat-status" id="status-navigator">—</div></div>
+        <div class="seat-row" id="seat-witness"><div class="seat-dot"></div><div class="seat-name">The Witness</div><div class="seat-status" id="status-witness">—</div></div>
+        <div class="seat-row" id="seat-oracle"><div class="seat-dot"></div><div class="seat-name">The Oracle</div><div class="seat-status" id="status-oracle">—</div></div>
+        <div class="seat-row" id="seat-forge"><div class="seat-dot"></div><div class="seat-name">The Forge</div><div class="seat-status" id="status-forge">—</div></div>
+        <div class="seat-row" id="seat-weaver"><div class="seat-dot"></div><div class="seat-name">The Weaver</div><div class="seat-status" id="status-weaver">—</div></div>
+        <div class="seat-row" id="seat-architect"><div class="seat-dot"></div><div class="seat-name">The Architect</div><div class="seat-status" id="status-architect">—</div></div>
+      </div>
+    </div>
+
+    <!-- Reactor Stats -->
+    <div class="right-section">
+      <div class="panel-title">Reactor Core</div>
+      <div class="reactor-stats">
+        <div class="r-row"><span class="r-label">Thermal Baseline</span><span class="r-val" id="r-temp">0.18°C</span></div>
+        <div class="r-row"><span class="r-label">Pulse Freq</span><span class="r-val" id="r-freq">—</span></div>
+        <div class="r-row"><span class="r-label">Active Nodes</span><span class="r-val green" id="r-active">—</span></div>
+        <div class="r-row"><span class="r-label">Total Tasks</span><span class="r-val" id="r-total">—</span></div>
+        <div class="r-row"><span class="r-label">Errors</span><span class="r-val red" id="r-errors">—</span></div>
+        <div class="r-row"><span class="r-label">Memory</span><span class="r-val" id="r-facts">—</span></div>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="right-section">
+      <div class="panel-title">Activity Log</div>
+      <div class="meta-log" id="meta-log"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let ws = null;
+let sessionId = null;
+let streamingEl = null;
+let streamingText = '';
+let processing = false;
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  ws.onopen = () => {
+    document.getElementById('conn-banner').style.display = 'none';
+    document.getElementById('pulse-dot').style.background = 'var(--mint)';
+    loadSessions();
+  };
+
+  ws.onclose = () => {
+    document.getElementById('conn-banner').style.display = 'block';
+    document.getElementById('pulse-dot').style.background = 'var(--coral)';
+    setTimeout(connect, 2000);
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    handleMessage(msg);
+  };
+}
+
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'init':
+    case 'pulse':
+      updateStats(msg.data);
+      break;
+
+    case 'session_created':
+      sessionId = msg.session_id;
+      loadSessions();
+      break;
+
+    case 'processing_start':
+      processing = true;
+      document.getElementById('send-btn').disabled = true;
+      streamingText = '';
+      streamingEl = appendMessage('assistant', '', true);
+      break;
+
+    case 'seat_activity':
+      activateSeat(msg.seat, msg.text);
+      logActivity(msg.seat, msg.text);
+      break;
+
+    case 'response_chunk':
+      if (streamingEl) {
+        streamingText += msg.text;
+        streamingEl.querySelector('.message-bubble').textContent = streamingText;
+        streamingEl.querySelector('.message-bubble').innerHTML =
+          formatText(streamingText) + '<span class="streaming-cursor"></span>';
+        scrollToBottom();
+      }
+      break;
+
+    case 'processing_done':
+      processing = false;
+      document.getElementById('send-btn').disabled = false;
+      if (streamingEl) {
+        const bubble = streamingEl.querySelector('.message-bubble');
+        bubble.innerHTML = formatText(streamingText);
+        const meta = streamingEl.querySelector('.message-meta');
+        if (meta && msg.meta) {
+          meta.textContent = `${msg.meta.intent} · ${msg.meta.complexity} · [${msg.meta.seats_activated.join(', ')}]`;
+        }
+        streamingEl = null;
+      }
+      resetSeats();
+      logActivity('done', `${msg.meta?.intent || ''} · ${msg.meta?.plan || ''}`);
+      break;
+
+    case 'error':
+      processing = false;
+      document.getElementById('send-btn').disabled = false;
+      appendMessage('assistant', `⚠ Error: ${msg.message}`);
+      resetSeats();
+      break;
+  }
+}
+
+// ── Stats ────────────────────────────────────────────────────────────────────
+function updateStats(data) {
+  if (data.temperature !== undefined) {
+    document.getElementById('h-temp').textContent = data.temperature;
+    document.getElementById('r-temp').textContent = data.temperature + '°C';
+  }
+  if (data.pulse_count !== undefined)
+    document.getElementById('h-pulses').textContent = data.pulse_count.toLocaleString();
+  if (data.uptime_seconds !== undefined)
+    document.getElementById('h-uptime').textContent = formatUptime(data.uptime_seconds);
+  if (data.active_workers !== undefined) {
+    document.getElementById('h-nodes').textContent = data.active_workers;
+    document.getElementById('r-active').textContent = data.active_workers;
+  }
+  if (data.frequency_hz !== undefined)
+    document.getElementById('r-freq').textContent = data.frequency_hz.toFixed(1) + ' Hz';
+  if (data.total_processed !== undefined)
+    document.getElementById('r-total').textContent = data.total_processed;
+  if (data.total_errors !== undefined)
+    document.getElementById('r-errors').textContent = data.total_errors;
+  if (data.facts !== undefined)
+    document.getElementById('r-facts').textContent = `${data.facts} facts`;
+
+  // Pulse animation
+  const dot = document.getElementById('pulse-dot');
+  dot.style.transform = 'scale(1.5)';
+  setTimeout(() => dot.style.transform = 'scale(1)', 100);
+}
+
+function formatUptime(secs) {
+  if (secs < 60) return Math.round(secs) + 's';
+  if (secs < 3600) return Math.round(secs / 60) + 'm';
+  return (secs / 3600).toFixed(1) + 'h';
+}
+
+// ── Council Seats ─────────────────────────────────────────────────────────────
+const SEAT_MAP = {
+  sentinel: 'sentinel', navigator: 'navigator', witness: 'witness',
+  oracle: 'oracle', forge: 'forge', weaver: 'weaver', architect: 'architect'
+};
+
+function activateSeat(seat, text) {
+  const key = SEAT_MAP[seat] || seat;
+  const row = document.getElementById('seat-' + key);
+  const status = document.getElementById('status-' + key);
+  if (row) {
+    row.classList.add('active');
+    if (status) status.textContent = text.slice(0, 12);
+  }
+}
+
+function resetSeats() {
+  Object.keys(SEAT_MAP).forEach(key => {
+    const row = document.getElementById('seat-' + key);
+    const status = document.getElementById('status-' + key);
+    if (row) { row.classList.remove('active'); }
+    if (status) status.textContent = '—';
+  });
+}
+
+// ── Activity Log ──────────────────────────────────────────────────────────────
+function logActivity(tag, text) {
+  const log = document.getElementById('meta-log');
+  const entry = document.createElement('div');
+  entry.className = 'meta-entry';
+  entry.innerHTML = `<span class="tag">[${tag}]</span>${text.slice(0, 60)}`;
+  log.insertBefore(entry, log.firstChild);
+  while (log.children.length > 40) log.removeChild(log.lastChild);
+}
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+async function loadSessions() {
+  const resp = await fetch('/api/sessions');
+  const sessions = await resp.json();
+  const list = document.getElementById('sessions-list');
+  if (sessions.length === 0) {
+    list.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:11px;">No sessions yet</div>';
+    return;
+  }
+  list.innerHTML = sessions.map(s => `
+    <div class="session-item ${s.id === sessionId ? 'active' : ''}"
+         onclick="selectSession('${s.id}', '${escHtml(s.title || 'Session')}')">
+      ${escHtml((s.title || 'Session').slice(0, 22))}
+    </div>
+  `).join('');
+}
+
+async function selectSession(sid, title) {
+  sessionId = sid;
+  document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+
+  // Load history
+  const resp = await fetch(`/api/sessions/${sid}/history`);
+  const history = await resp.json();
+  const chatArea = document.getElementById('chat-area');
+  chatArea.innerHTML = '';
+  if (history.length === 0) {
+    chatArea.innerHTML = `<div class="welcome"><h2>${escHtml(title)}</h2><p>Session started. Send a message below.</p></div>`;
+    return;
+  }
+  history.forEach(m => {
+    if (m.role === 'user' || m.role === 'assistant') {
+      appendMessage(m.role, m.content);
+    }
+  });
+  scrollToBottom();
+}
+
+function newSession() {
+  const title = prompt('Session name:', 'New Session') || 'New Session';
+  ws.send(JSON.stringify({ action: 'new_session', title }));
+  const chatArea = document.getElementById('chat-area');
+  chatArea.innerHTML = `<div class="welcome"><h2>${escHtml(title)}</h2><p>Session started. Send a message below.</p></div>`;
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || processing) return;
+  if (!sessionId) {
+    alert('Please create or select a session first.');
+    return;
+  }
+  appendMessage('user', text);
+  input.value = '';
+  ws.send(JSON.stringify({ action: 'chat', message: text, session_id: sessionId }));
+}
+
+function onKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function appendMessage(role, text, streaming = false) {
+  const chatArea = document.getElementById('chat-area');
+  // Remove welcome screen if present
+  const welcome = chatArea.querySelector('.welcome');
+  if (welcome) chatArea.removeChild(welcome);
+
+  const el = document.createElement('div');
+  el.className = `message ${role}`;
+  el.innerHTML = `
+    <div class="message-bubble">${streaming ? '<span class="streaming-cursor"></span>' : formatText(text)}</div>
+    <div class="message-meta">${role === 'user' ? 'You' : '✦ Council'}</div>
+  `;
+  chatArea.appendChild(el);
+  scrollToBottom();
+  return el;
+}
+
+function formatText(text) {
+  // Basic markdown-lite formatting
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+function scrollToBottom() {
+  const chatArea = document.getElementById('chat-area');
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+connect();
+</script>
+</body>
+</html>
