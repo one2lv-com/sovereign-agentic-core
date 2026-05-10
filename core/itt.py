@@ -22,7 +22,7 @@ from typing import Optional
 
 from .compass import FluxCompass
 from .maton import MatonBridge
-from .reactor import LumenisReactor
+from .reactor import LumenisReactor, NvidiaReactor
 
 # ── Seat Definitions ──────────────────────────────────────────────────────────
 
@@ -179,8 +179,12 @@ class ITTCouncil:
     Gmail, Drive, GitHub, Dropbox, OneDrive, YouTube, Firebase, and more.
     """
 
+    # Seats that run on the NVIDIA Gemma reactor (code + reasoning)
+    NVIDIA_SEATS = {"forge", "oracle"}
+
     def __init__(self, reactor: LumenisReactor, compass: FluxCompass):
         self.reactor = reactor
+        self.nvidia = NvidiaReactor()
         self.compass = compass
         self.bridge = MatonBridge()
         # Inject the live Maton manifest into Hermes's system prompt
@@ -199,7 +203,9 @@ class ITTCouncil:
                 "content": f"{user_message}\n\n{extra_context}".strip(),
             }
         ]
-        return await self.reactor.call(
+        # Route Forge and Oracle to NVIDIA Gemma; everything else stays on Claude
+        backend = self.nvidia if seat_key in self.NVIDIA_SEATS else self.reactor
+        return await backend.call(
             messages=messages,
             system=seat["system"],
             max_tokens=1024,
@@ -325,12 +331,12 @@ class ITTCouncil:
         specialist_output = ""
 
         if "forge" in seats_needed or intent == "code":
-            await notify("forge", "Building...")
+            await notify("forge", "Building [Gemma]...")
             specialist_output = await self._call_seat("forge", user_message, memory_context)
             await notify("forge", "✓ Built")
 
         elif "oracle" in seats_needed or intent in ("research", "analysis"):
-            await notify("oracle", "Reasoning...")
+            await notify("oracle", "Reasoning [Gemma]...")
             specialist_output = await self._call_seat("oracle", user_message, memory_context)
             await notify("oracle", "✓ Answered")
 
