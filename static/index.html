@@ -273,7 +273,32 @@ textarea#chat-input:focus { border-color: var(--cyan); }
 .seat-row.active .seat-dot { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
 .seat-name { font-size: 11px; color: var(--muted); flex: 1; }
 .seat-row.active .seat-name { color: var(--cyan); }
+.seat-row.hermes .seat-dot { background: var(--gold); opacity: 0.4; }
+.seat-row.hermes.active .seat-dot { background: var(--gold); box-shadow: 0 0 6px var(--gold); opacity: 1; }
+.seat-row.hermes.active .seat-name { color: var(--gold); }
 .seat-status { font-size: 10px; color: var(--muted); }
+
+/* ── Maton Services ── */
+.maton-services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0;
+}
+.service-chip {
+  padding: 2px 7px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 10px;
+  color: var(--muted);
+  transition: all 0.2s;
+}
+.service-chip.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: #2a1a00;
+}
 
 /* Reactor stats */
 .reactor-stats { padding: 8px; }
@@ -383,7 +408,7 @@ textarea#chat-input:focus { border-color: var(--cyan); }
         <p>
           Running at Thermal Baseline <strong style="color:var(--cyan)">0.18°C</strong><br>
           144,382 Vanguard Nodes standing by<br>
-          Council of Seven ready<br><br>
+          Council of Eight ready · Maton Gateway online<br><br>
           Select or create a session to begin.
         </p>
       </div>
@@ -397,9 +422,9 @@ textarea#chat-input:focus { border-color: var(--cyan); }
   <!-- RIGHT: System Status -->
   <div class="right-panel">
 
-    <!-- Council of Seven -->
+    <!-- Council of Eight -->
     <div class="right-section">
-      <div class="panel-title">Council of Seven</div>
+      <div class="panel-title">Council of Eight</div>
       <div class="council-seats" id="council-seats">
         <div class="seat-row" id="seat-sentinel"><div class="seat-dot"></div><div class="seat-name">The Sentinel</div><div class="seat-status" id="status-sentinel">—</div></div>
         <div class="seat-row" id="seat-navigator"><div class="seat-dot"></div><div class="seat-name">The Navigator</div><div class="seat-status" id="status-navigator">—</div></div>
@@ -408,6 +433,27 @@ textarea#chat-input:focus { border-color: var(--cyan); }
         <div class="seat-row" id="seat-forge"><div class="seat-dot"></div><div class="seat-name">The Forge</div><div class="seat-status" id="status-forge">—</div></div>
         <div class="seat-row" id="seat-weaver"><div class="seat-dot"></div><div class="seat-name">The Weaver</div><div class="seat-status" id="status-weaver">—</div></div>
         <div class="seat-row" id="seat-architect"><div class="seat-dot"></div><div class="seat-name">The Architect</div><div class="seat-status" id="status-architect">—</div></div>
+        <div class="seat-row hermes" id="seat-hermes"><div class="seat-dot"></div><div class="seat-name">The Hermes</div><div class="seat-status" id="status-hermes">—</div></div>
+      </div>
+    </div>
+
+    <!-- Maton Services -->
+    <div class="right-section">
+      <div class="panel-title">Maton Gateway</div>
+      <div class="maton-services" id="maton-services">
+        <div class="service-chip">Gmail</div>
+        <div class="service-chip">Drive</div>
+        <div class="service-chip">Docs</div>
+        <div class="service-chip">Contacts</div>
+        <div class="service-chip">Meet</div>
+        <div class="service-chip">YouTube</div>
+        <div class="service-chip">GitHub</div>
+        <div class="service-chip">Dropbox</div>
+        <div class="service-chip">OneDrive</div>
+        <div class="service-chip">Firebase</div>
+        <div class="service-chip">Search Console</div>
+        <div class="service-chip">Play</div>
+        <div class="service-chip">Workspace</div>
       </div>
     </div>
 
@@ -561,8 +607,37 @@ function formatUptime(secs) {
 // ── Council Seats ─────────────────────────────────────────────────────────────
 const SEAT_MAP = {
   sentinel: 'sentinel', navigator: 'navigator', witness: 'witness',
-  oracle: 'oracle', forge: 'forge', weaver: 'weaver', architect: 'architect'
+  oracle: 'oracle', forge: 'forge', weaver: 'weaver', architect: 'architect',
+  hermes: 'hermes'
 };
+
+const HERMES_SERVICE_MAP = {
+  'google-mail': 'Gmail', 'gmail': 'Gmail',
+  'google-drive': 'Drive', 'drive': 'Drive',
+  'google-docs': 'Docs', 'docs': 'Docs',
+  'google-contacts': 'Contacts',
+  'google-meet': 'Meet',
+  'youtube': 'YouTube',
+  'github': 'GitHub',
+  'dropbox': 'Dropbox',
+  'one-drive': 'OneDrive', 'onedrive': 'OneDrive',
+  'firebase': 'Firebase',
+  'google-search-console': 'Search Console',
+  'google-play': 'Play',
+  'google-workspace-admin': 'Workspace',
+};
+
+function activateService(text) {
+  // Light up service chips if text mentions them
+  document.querySelectorAll('.service-chip').forEach(chip => {
+    const label = chip.textContent.toLowerCase();
+    if (text.toLowerCase().includes(label)) chip.classList.add('active');
+  });
+}
+
+function resetServices() {
+  document.querySelectorAll('.service-chip').forEach(c => c.classList.remove('active'));
+}
 
 function activateSeat(seat, text) {
   const key = SEAT_MAP[seat] || seat;
@@ -570,8 +645,9 @@ function activateSeat(seat, text) {
   const status = document.getElementById('status-' + key);
   if (row) {
     row.classList.add('active');
-    if (status) status.textContent = text.slice(0, 12);
+    if (status) status.textContent = text.slice(0, 16);
   }
+  if (seat === 'hermes') activateService(text);
 }
 
 function resetSeats() {
@@ -581,6 +657,7 @@ function resetSeats() {
     if (row) { row.classList.remove('active'); }
     if (status) status.textContent = '—';
   });
+  resetServices();
 }
 
 // ── Activity Log ──────────────────────────────────────────────────────────────
