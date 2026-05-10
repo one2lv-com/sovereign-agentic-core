@@ -276,6 +276,11 @@ textarea#chat-input:focus { border-color: var(--cyan); }
 .seat-row.hermes .seat-dot { background: var(--gold); opacity: 0.4; }
 .seat-row.hermes.active .seat-dot { background: var(--gold); box-shadow: 0 0 6px var(--gold); opacity: 1; }
 .seat-row.hermes.active .seat-name { color: var(--gold); }
+.seat-model { font-size: 9px; color: var(--muted); opacity: 0.6; margin-left: 3px; }
+.nvidia-label { color: #76b900; opacity: 0.8; }
+.seat-row.nvidia .seat-dot { background: #76b900; opacity: 0.4; }
+.seat-row.nvidia.active .seat-dot { background: #76b900; box-shadow: 0 0 6px #76b900; opacity: 1; }
+.seat-row.nvidia.active .seat-name { color: #76b900; }
 .seat-status { font-size: 10px; color: var(--muted); }
 
 /* ── Maton Services ── */
@@ -426,14 +431,14 @@ textarea#chat-input:focus { border-color: var(--cyan); }
     <div class="right-section">
       <div class="panel-title">Council of Eight</div>
       <div class="council-seats" id="council-seats">
-        <div class="seat-row" id="seat-sentinel"><div class="seat-dot"></div><div class="seat-name">The Sentinel</div><div class="seat-status" id="status-sentinel">—</div></div>
-        <div class="seat-row" id="seat-navigator"><div class="seat-dot"></div><div class="seat-name">The Navigator</div><div class="seat-status" id="status-navigator">—</div></div>
-        <div class="seat-row" id="seat-witness"><div class="seat-dot"></div><div class="seat-name">The Witness</div><div class="seat-status" id="status-witness">—</div></div>
-        <div class="seat-row" id="seat-oracle"><div class="seat-dot"></div><div class="seat-name">The Oracle</div><div class="seat-status" id="status-oracle">—</div></div>
-        <div class="seat-row" id="seat-forge"><div class="seat-dot"></div><div class="seat-name">The Forge</div><div class="seat-status" id="status-forge">—</div></div>
-        <div class="seat-row" id="seat-weaver"><div class="seat-dot"></div><div class="seat-name">The Weaver</div><div class="seat-status" id="status-weaver">—</div></div>
-        <div class="seat-row" id="seat-architect"><div class="seat-dot"></div><div class="seat-name">The Architect</div><div class="seat-status" id="status-architect">—</div></div>
-        <div class="seat-row hermes" id="seat-hermes"><div class="seat-dot"></div><div class="seat-name">The Hermes</div><div class="seat-status" id="status-hermes">—</div></div>
+        <div class="seat-row" id="seat-sentinel"><div class="seat-dot"></div><div class="seat-name">The Sentinel <span class="seat-model">claude</span></div><div class="seat-status" id="status-sentinel">—</div></div>
+        <div class="seat-row" id="seat-navigator"><div class="seat-dot"></div><div class="seat-name">The Navigator <span class="seat-model">claude</span></div><div class="seat-status" id="status-navigator">—</div></div>
+        <div class="seat-row" id="seat-witness"><div class="seat-dot"></div><div class="seat-name">The Witness <span class="seat-model">claude</span></div><div class="seat-status" id="status-witness">—</div></div>
+        <div class="seat-row nvidia" id="seat-oracle"><div class="seat-dot"></div><div class="seat-name">The Oracle <span class="seat-model nvidia-label">gemma</span></div><div class="seat-status" id="status-oracle">—</div></div>
+        <div class="seat-row nvidia" id="seat-forge"><div class="seat-dot"></div><div class="seat-name">The Forge <span class="seat-model nvidia-label">gemma</span></div><div class="seat-status" id="status-forge">—</div></div>
+        <div class="seat-row" id="seat-weaver"><div class="seat-dot"></div><div class="seat-name">The Weaver <span class="seat-model">claude</span></div><div class="seat-status" id="status-weaver">—</div></div>
+        <div class="seat-row" id="seat-architect"><div class="seat-dot"></div><div class="seat-name">The Architect <span class="seat-model">claude</span></div><div class="seat-status" id="status-architect">—</div></div>
+        <div class="seat-row hermes" id="seat-hermes"><div class="seat-dot"></div><div class="seat-name">The Hermes <span class="seat-model">maton</span></div><div class="seat-status" id="status-hermes">—</div></div>
       </div>
     </div>
 
@@ -461,12 +466,18 @@ textarea#chat-input:focus { border-color: var(--cyan); }
     <div class="right-section">
       <div class="panel-title">Reactor Core</div>
       <div class="reactor-stats">
+        <div class="r-row"><span class="r-label">Primary</span><span class="r-val" style="color:var(--cyan);font-size:10px">Claude claude-opus-4-6</span></div>
         <div class="r-row"><span class="r-label">Thermal Baseline</span><span class="r-val" id="r-temp">0.18°C</span></div>
         <div class="r-row"><span class="r-label">Pulse Freq</span><span class="r-val" id="r-freq">—</span></div>
         <div class="r-row"><span class="r-label">Active Nodes</span><span class="r-val green" id="r-active">—</span></div>
         <div class="r-row"><span class="r-label">Total Tasks</span><span class="r-val" id="r-total">—</span></div>
         <div class="r-row"><span class="r-label">Errors</span><span class="r-val red" id="r-errors">—</span></div>
         <div class="r-row"><span class="r-label">Memory</span><span class="r-val" id="r-facts">—</span></div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <div class="r-row"><span class="r-label">Secondary</span><span class="r-val" style="color:#76b900;font-size:10px">Gemma-4-31B-IT</span></div>
+          <div class="r-row"><span class="r-label">Seats</span><span class="r-val" style="font-size:10px">Forge · Oracle</span></div>
+          <div class="r-row"><span class="r-label">NVIDIA Status</span><span class="r-val green" id="r-nvidia">online</span></div>
+        </div>
       </div>
     </div>
 
