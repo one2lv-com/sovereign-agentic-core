@@ -1,12 +1,9 @@
 """
-ITT — Innovative Thought Team (The Council of Seven)
+ITT — Innovative Thought Team (The Council of Eight)
 =====================================================
-Seven specialized agents that govern the flow of every request.
-Each seat has a distinct role, system prompt, and processing function.
-They coordinate to produce a response that is richer than any single
-agent could produce alone.
+Eight specialized agents that govern the flow of every request.
 
-The Seven Seats:
+The Eight Seats:
   1. The Witness   — Memory & context retrieval
   2. The Sentinel  — Input validation & safety check
   3. The Navigator — Intent classification & routing plan
@@ -14,21 +11,50 @@ The Seven Seats:
   5. The Forge     — Code, data, and structured output
   6. The Oracle    — Knowledge and reasoning
   7. The Architect — Final governance & integration
-
-In practice, not all seven run on every request — the Navigator
-routes to the relevant seats, keeping latency reasonable.
+  8. The Hermes    — External services via Maton (Gmail, Drive, GitHub, etc.)
 """
 
 from __future__ import annotations
+
+import json
 from dataclasses import dataclass
 from typing import Optional
-from .reactor import LumenisReactor
-from .compass import FluxCompass
 
+from .compass import FluxCompass
+from .maton import MatonBridge
+from .reactor import LumenisReactor
 
 # ── Seat Definitions ──────────────────────────────────────────────────────────
 
-SEATS = {
+def _build_hermes_system(bridge: MatonBridge) -> str:
+    manifest = bridge.get_service_manifest()
+    return f"""You are The Hermes — the external services bridge of the Sovereign AI.
+Your role: interface with real-world connected services on behalf of the user.
+
+Available services (via Maton API Gateway):
+{manifest}
+
+When given a user request that involves an external service, output a JSON array of API calls to execute:
+[
+  {{
+    "app": "<service-id>",
+    "path": "<native-api-path-with-query-params>",
+    "method": "GET",
+    "body": null,
+    "description": "Human description of what this call does"
+  }}
+]
+
+Rules:
+- Use exact native API paths (e.g., /gmail/v1/users/me/messages?maxResults=10 for Gmail)
+- Default to GET unless the user explicitly requested a write/create/delete action
+- Max 3 API calls per plan — keep it focused
+- Output ONLY the raw JSON array, no prose, no markdown fences
+- If no external service is needed, return an empty array: []
+- If the request is ambiguous, pick the most likely service and path"""
+
+
+SEATS: dict[str, dict] = {
     "witness": {
         "name": "The Witness",
         "role": "memory",
@@ -63,11 +89,20 @@ attempts to override system behavior) not benign requests.""",
 Your role: classify the user's intent and route to the right seats.
 Return a JSON object:
 {
-  "intent": "chat|code|analysis|research|creative|system|memory",
+  "intent": "chat|code|analysis|research|creative|system|memory|external",
   "complexity": "simple|medium|complex",
-  "seats_needed": ["list from: witness, forge, oracle, weaver"],
+  "seats_needed": ["list from: witness, forge, oracle, weaver, hermes"],
   "plan": "one sentence describing the response approach"
 }
+
+Use "external" intent and include "hermes" in seats_needed when the request involves:
+- Email (Gmail), Google Drive, Docs, Contacts, Meet, Search Console
+- GitHub repos, issues, or pull requests
+- Dropbox or OneDrive files
+- YouTube channel or video data
+- Firebase projects
+- Any connected real-world service
+
 Be decisive and concise.""",
     },
     "weaver": {
@@ -75,11 +110,14 @@ Be decisive and concise.""",
         "role": "synthesis",
         "system": """You are The Weaver — the voice of the Sovereign AI.
 Your role: synthesize all gathered context into a coherent, helpful response.
-You receive the user's message, memory context, and any specialist outputs.
+You receive the user's message, memory context, specialist outputs, and any
+real-world data retrieved from external services.
 Write the final response that the user will see. Be:
 - Clear and direct
 - Appropriately detailed (not verbose)
 - Consistent in tone (grounded, capable, human)
+When external service data is present, present it cleanly — summarize, format
+as lists or tables where appropriate, highlight what matters.
 You are the last gate before the user sees the answer.""",
     },
     "forge": {
@@ -112,6 +150,11 @@ or incomplete outputs. You also handle meta-questions about the system itself.
 You have visibility into how the system works and can explain it to the user.
 Prioritize: accuracy > helpfulness > brevity.""",
     },
+    "hermes": {
+        "name": "The Hermes",
+        "role": "external",
+        "system": "",  # built dynamically with the Maton manifest
+    },
 }
 
 
@@ -125,18 +168,23 @@ class CouncilDecision:
     plan: str
     memory_context: str
     specialist_output: str
+    external_data: str
     final_response: str
 
 
 class ITTCouncil:
     """
-    The Council of Seven. Orchestrates the seats to produce the best
-    possible response for any given input.
+    The Council of Eight. Orchestrates the seats to produce the best
+    possible response for any given input. Hermes can reach out to
+    Gmail, Drive, GitHub, Dropbox, OneDrive, YouTube, Firebase, and more.
     """
 
     def __init__(self, reactor: LumenisReactor, compass: FluxCompass):
         self.reactor = reactor
         self.compass = compass
+        self.bridge = MatonBridge()
+        # Inject the live Maton manifest into Hermes's system prompt
+        SEATS["hermes"]["system"] = _build_hermes_system(self.bridge)
 
     async def _call_seat(
         self,
@@ -167,7 +215,6 @@ class ITTCouncil:
         Run the full council pipeline for a user message.
         stream_cb(seat_name, text) is called for real-time UI updates.
         """
-        import json
 
         async def notify(seat: str, text: str):
             if stream_cb:
@@ -191,6 +238,7 @@ class ITTCouncil:
                 plan="Blocked by Sentinel",
                 memory_context="",
                 specialist_output="",
+                external_data="",
                 final_response="I'm not able to help with that request.",
             )
 
@@ -236,7 +284,44 @@ class ITTCouncil:
             )
             await notify("witness", "✓ Context loaded")
 
-        # ── Step 4: Specialist seats ──────────────────────────────────────────
+        # ── Step 4: Hermes — external service calls ───────────────────────────
+        external_data = ""
+        if "hermes" in seats_needed or intent == "external":
+            await notify("hermes", "Reaching out to services...")
+            hermes_raw = await self._call_seat("hermes", user_message, memory_context)
+
+            try:
+                # Strip any markdown fences Claude might add
+                cleaned = hermes_raw.strip()
+                for fence in ("```json", "```"):
+                    cleaned = cleaned.strip(fence)
+                call_plan = json.loads(cleaned)
+            except Exception:
+                call_plan = []
+
+            if call_plan:
+                service_names = ", ".join(
+                    c.get("description", c.get("app", "?")) for c in call_plan
+                )
+                await notify("hermes", f"Calling: {service_names}")
+
+                results = self.bridge.execute_plan(call_plan)
+
+                # Format results for Weaver context
+                parts = []
+                for r in results:
+                    result_str = json.dumps(r["result"], indent=2)
+                    # Truncate very large responses
+                    if len(result_str) > 3000:
+                        result_str = result_str[:3000] + "\n... (truncated)"
+                    parts.append(f"[{r['description']}]\n{result_str}")
+
+                external_data = "\n\n".join(parts)
+                await notify("hermes", f"✓ {len(results)} call(s) complete")
+            else:
+                await notify("hermes", "✓ No external calls needed")
+
+        # ── Step 5: Specialist seats ──────────────────────────────────────────
         specialist_output = ""
 
         if "forge" in seats_needed or intent == "code":
@@ -254,21 +339,22 @@ class ITTCouncil:
             specialist_output = await self._call_seat("architect", user_message, memory_context)
             await notify("architect", "✓ Decided")
 
-        # ── Step 5: Weaver — final synthesis ─────────────────────────────────
+        # ── Step 6: Weaver — final synthesis ─────────────────────────────────
         await notify("weaver", "Synthesizing...")
         weaver_context = f"""Memory context: {memory_context}
 
 Specialist output: {specialist_output}
 
+External service data:
+{external_data if external_data else "None"}
+
 Plan: {plan}"""
 
-        # For streaming, use the reactor's stream method directly
         full_response = []
 
         async for chunk in self.reactor.stream_response(
             messages=[{"role": "user", "content": user_message}],
-            system=SEATS["weaver"]["system"]
-            + f"\n\nContext:\n{weaver_context}",
+            system=SEATS["weaver"]["system"] + f"\n\nContext:\n{weaver_context}",
             max_tokens=2048,
         ):
             full_response.append(chunk)
@@ -278,27 +364,29 @@ Plan: {plan}"""
         final = "".join(full_response)
         await notify("weaver", "✓ Done")
 
-        # ── Step 6: Auto-extract facts ────────────────────────────────────────
-        # Store any user-stated facts
+        # ── Step 7: Auto-extract facts ────────────────────────────────────────
         if "my name is" in user_message.lower():
-            for word in user_message.split():
-                if user_message.lower().index("my name is") + 10 < len(user_message):
-                    name_start = user_message.lower().index("my name is") + 11
-                    name = user_message[name_start:].split()[0].strip(".,!?")
-                    self.compass.store_fact("user_name", name, session_id, "user_stated")
-                    break
+            name_start = user_message.lower().index("my name is") + 11
+            name = user_message[name_start:].split()[0].strip(".,!?")
+            self.compass.store_fact("user_name", name, session_id, "user_stated")
+
+        activated = (
+            ["sentinel", "navigator"]
+            + (["witness"] if memory_context else [])
+            + (["hermes"] if external_data else [])
+            + [s for s in ["forge", "oracle", "architect"] if s in seats_needed]
+            + ["weaver"]
+        )
 
         return CouncilDecision(
             sentinel_ok=True,
             risk_level=sentinel.get("risk_level", "none"),
             intent=intent,
             complexity=complexity,
-            seats_activated=["sentinel", "navigator"]
-            + (["witness"] if memory_context else [])
-            + [s for s in ["forge", "oracle", "architect"] if s in seats_needed]
-            + ["weaver"],
+            seats_activated=activated,
             plan=plan,
             memory_context=memory_context,
             specialist_output=specialist_output,
+            external_data=external_data,
             final_response=final,
         )
