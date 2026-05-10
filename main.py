@@ -18,11 +18,12 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from core import LumenisReactor, FluxCompass, ITTCouncil, VanguardNodePool
+from core import LumenisReactor, FluxCompass, ITTCouncil, MatonBridge, VanguardNodePool
 
 # ── Global instances ──────────────────────────────────────────────────────────
 reactor = LumenisReactor()
 compass = FluxCompass()
+bridge = MatonBridge()
 council = ITTCouncil(reactor, compass)
 node_pool = VanguardNodePool()
 
@@ -79,13 +80,15 @@ async def root():
 # ── REST: Status ──────────────────────────────────────────────────────────────
 @app.get("/api/status")
 async def status():
+    from core.itt import SEATS
     return {
         "reactor": reactor.get_status(),
         "nodes": node_pool.get_status(),
         "compass": compass.get_stats(),
+        "maton": bridge.get_status(),
         "seats": [
             {"key": k, "name": v["name"], "role": v["role"]}
-            for k, v in __import__("core.itt", fromlist=["SEATS"]).SEATS.items()
+            for k, v in SEATS.items()
         ],
     }
 
@@ -238,6 +241,7 @@ async def handle_chat(ws: WebSocket, msg: dict):
                 "seats_activated": decision.seats_activated,
                 "plan": decision.plan,
                 "risk_level": decision.risk_level,
+                "external_data": bool(decision.external_data),
             },
         }
     )
