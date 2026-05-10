@@ -5,23 +5,30 @@ The foundation of energy. Runs at the Thermal Baseline of 0.18 (mapped from 18°
 This is the "Cool Fire" — fully powered, emotionally and logically stable.
 
 Real implementation:
-  - Claude claude-opus-4-6 at temperature 0.18
-  - Adaptive thinking for deep reasoning
+  - Primary:   Claude claude-opus-4-6 at temperature 0.18 (adaptive thinking)
+  - Secondary: NVIDIA Gemma-4-31B-IT with thinking enabled (streaming SSE)
   - 73ms heartbeat interval (mapped from 73Hz)
-  - Streaming output
+  - Streaming output on both backends
 """
 
 import asyncio
+import json
+import os
 import time
 from dataclasses import dataclass, field
 from typing import AsyncIterator
+
 import anthropic
+import httpx
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 THERMAL_BASELINE = 0.18          # 18°C → 0.18 temperature
 PULSE_INTERVAL_MS = 73           # 73Hz → 73ms
 NODE_COUNT = 144_382             # Vanguard lattice size (used for pool sizing / display)
 MODEL = "claude-opus-4-6"
+
+NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+NVIDIA_MODEL   = "google/gemma-4-31b-it"
 
 @dataclass
 class ReactorStatus:
@@ -122,4 +129,100 @@ class LumenisReactor:
             "frequency_hz": round(self.status.frequency_hz, 2),
             "node_lattice_size": NODE_COUNT,
             "model": MODEL,
+        }
+
+
+class NvidiaReactor:
+    """
+    Secondary reactor powered by NVIDIA's Gemma-4-31B-IT with thinking enabled.
+    Uses the NVIDIA inference API with text/event-stream SSE streaming.
+    Activated by Forge (code) and Oracle (reasoning) seats.
+    """
+
+    def __init__(self):
+        self.api_key = os.environ.get("NVIDIA_API_KEY", "")
+        self.model = NVIDIA_MODEL
+        self._call_count = 0
+        self._error_count = 0
+
+    async def stream_response(
+        self,
+        messages: list[dict],
+        system: str = "",
+        max_tokens: int = 4096,
+    ) -> AsyncIterator[str]:
+        """Stream tokens from NVIDIA Gemma with thinking enabled."""
+        full_messages = []
+        if system:
+            full_messages.append({"role": "system", "content": system})
+        full_messages.extend(messages)
+
+        payload = {
+            "model": self.model,
+            "messages": full_messages,
+            "max_tokens": max_tokens,
+            "temperature": 1.00,
+            "top_p": 0.95,
+            "stream": True,
+            "chat_template_kwargs": {"enable_thinking": True},
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+        }
+
+        in_thinking = False
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST", NVIDIA_API_URL, headers=headers, json=payload
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                        delta = chunk["choices"][0]["delta"]
+
+                        # Track thinking vs answer sections
+                        if delta.get("reasoning_content"):
+                            in_thinking = True
+                            continue  # skip raw thinking tokens from output
+                        if in_thinking and delta.get("content"):
+                            in_thinking = False  # thinking ended, answer begins
+
+                        text = delta.get("content", "")
+                        if text:
+                            self._call_count += 1
+                            yield text
+                    except Exception:
+                        continue
+
+    async def call(
+        self,
+        messages: list[dict],
+        system: str = "",
+        max_tokens: int = 2048,
+    ) -> str:
+        """Non-streaming call — collects full streamed response."""
+        parts = []
+        try:
+            async for chunk in self.stream_response(messages, system, max_tokens):
+                parts.append(chunk)
+        except Exception as e:
+            self._error_count += 1
+            return f"[NvidiaReactor error: {e}]"
+        return "".join(parts)
+
+    def get_status(self) -> dict:
+        return {
+            "model": self.model,
+            "tokens_streamed": self._call_count,
+            "errors": self._error_count,
+            "online": bool(self.api_key),
         }
