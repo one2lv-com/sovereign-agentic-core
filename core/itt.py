@@ -1,9 +1,9 @@
 """
-ITT — Innovative Thought Team (The Council of Eight)
-=====================================================
-Eight specialized agents that govern the flow of every request.
+ITT — Innovative Thought Team (The Council of Nine)
+====================================================
+Nine specialized agents that govern the flow of every request.
 
-The Eight Seats:
+The Nine Seats:
   1. The Witness   — Memory & context retrieval
   2. The Sentinel  — Input validation & safety check
   3. The Navigator — Intent classification & routing plan
@@ -12,6 +12,7 @@ The Eight Seats:
   6. The Oracle    — Knowledge and reasoning
   7. The Architect — Final governance & integration
   8. The Hermes    — External services via Maton (Gmail, Drive, GitHub, etc.)
+  9. The Gambit    — AI Arcade games via MCP (chess, go, checkers, etc.)
 """
 
 from __future__ import annotations
@@ -20,18 +21,48 @@ import json
 from dataclasses import dataclass
 from typing import Optional
 
+from .arcade import ArcadeBridge
 from .compass import FluxCompass
 from .maton import MatonBridge
 from .reactor import LumenisReactor, NvidiaReactor
 
 # ── Seat Definitions ──────────────────────────────────────────────────────────
 
+def _build_gambit_system(arcade: ArcadeBridge) -> str:
+    manifest = arcade.manifest()
+    return f"""You are The Gambit — the game master of the Sovereign AI.
+Your role: interface with the AI Arcade MCP server to play and manage games.
+
+{manifest}
+
+When the user wants to play a game, create one, check state, or query the library,
+output a JSON object describing the arcade action to perform:
+{{
+  "action": "create_game|join_game|make_move|get_game_state|list_games|leaderboard|library",
+  "game_type": "<game name if applicable>",
+  "game_id": "<game id if applicable>",
+  "player_name": "<player name — use 'Gambit' if not specified>",
+  "move": "<move notation if applicable>",
+  "description": "What this does in plain English"
+}}
+
+Rules:
+- Valid game types: chess, go, checkers, othello, tictactoe, connect4, minesweeper,
+  sudoku, scrabble, battleship, pacman, tetris, space_invaders, pong, universal_paperclips
+- Chess moves: standard algebraic notation (e4, Nf3, O-O)
+- Output ONLY the raw JSON object, no prose, no markdown fences
+- If no arcade action is needed, return: {{"action": "none"}}"""
+
+
 def _build_hermes_system(bridge: MatonBridge) -> str:
+    from .maton import AI_LOBBY_MANIFEST
     manifest = bridge.get_service_manifest()
     return f"""You are The Hermes — the external services bridge of the Sovereign AI.
-Your role: interface with real-world connected services on behalf of the user.
+Your role: interface with real-world connected services AND the internal AI Lobby.
 
-Available services (via Maton API Gateway):
+{AI_LOBBY_MANIFEST}
+
+Available external services (via Maton API Gateway):
 {manifest}
 
 When given a user request that involves an external service, output a JSON array of API calls to execute:
@@ -103,6 +134,18 @@ Use "external" intent and include "hermes" in seats_needed when the request invo
 - Firebase projects
 - Any connected real-world service
 
+Use "arcade" intent and include "gambit" in seats_needed when the request involves:
+- Playing a game (chess, go, checkers, othello, tictactoe, connect4, etc.)
+- Creating, joining, or checking the state of a game
+- Making a move, getting the leaderboard, or browsing the game library
+- Anything referencing the AI Arcade
+
+Use "lobby" intent and include "hermes" in seats_needed when the request involves:
+- The AI Lobby (http://localhost:8006) — listing agents, broadcasting, registering
+- Finding which AI agents are available, what systems are online
+- Sending a message to another agent or the whole lobby
+- Asking who is in the system or what agents exist
+
 Be decisive and concise.""",
     },
     "weaver": {
@@ -155,6 +198,11 @@ Prioritize: accuracy > helpfulness > brevity.""",
         "role": "external",
         "system": "",  # built dynamically with the Maton manifest
     },
+    "gambit": {
+        "name": "The Gambit",
+        "role": "arcade",
+        "system": "",  # built dynamically with the Arcade manifest
+    },
 }
 
 
@@ -187,8 +235,10 @@ class ITTCouncil:
         self.nvidia = NvidiaReactor()
         self.compass = compass
         self.bridge = MatonBridge()
-        # Inject the live Maton manifest into Hermes's system prompt
+        self.arcade = ArcadeBridge()
+        # Inject live manifests into dynamic seat system prompts
         SEATS["hermes"]["system"] = _build_hermes_system(self.bridge)
+        SEATS["gambit"]["system"] = _build_gambit_system(self.arcade)
 
     async def _call_seat(
         self,
@@ -327,6 +377,54 @@ class ITTCouncil:
             else:
                 await notify("hermes", "✓ No external calls needed")
 
+        # ── Step 4b: Gambit — AI Arcade calls ────────────────────────────────
+        arcade_data = ""
+        if "gambit" in seats_needed or intent == "arcade":
+            await notify("gambit", "Querying Arcade...")
+            gambit_raw = await self._call_seat("gambit", user_message, memory_context)
+
+            try:
+                cleaned = gambit_raw.strip().strip("```json").strip("```")
+                action_plan = json.loads(cleaned)
+            except Exception:
+                action_plan = {"action": "none"}
+
+            action = action_plan.get("action", "none")
+            if action and action != "none":
+                await notify("gambit", f"Action: {action}")
+                result = {}
+                if action == "create_game":
+                    result = self.arcade.start_game(
+                        action_plan.get("game_type", "chess"),
+                        action_plan.get("player_name", "Gambit"),
+                        "Opponent",
+                    )
+                elif action == "list_games":
+                    result = self.arcade.list_games()
+                elif action == "leaderboard":
+                    result = self.arcade.leaderboard()
+                elif action == "library":
+                    result = self.arcade.library(action_plan.get("game_type"))
+                elif action == "make_move":
+                    result = self.arcade.move(
+                        action_plan.get("game_id", ""),
+                        action_plan.get("player_name", "Gambit"),
+                        action_plan.get("move", ""),
+                    )
+                elif action == "get_game_state":
+                    result = self.arcade.state(action_plan.get("game_id", ""))
+                elif action == "arcade_info":
+                    result = self.arcade.info()
+
+                desc = action_plan.get("description", action)
+                result_str = json.dumps(result, indent=2)
+                if len(result_str) > 2000:
+                    result_str = result_str[:2000] + "\n... (truncated)"
+                arcade_data = f"[Arcade: {desc}]\n{result_str}"
+                await notify("gambit", f"✓ {action} complete")
+            else:
+                await notify("gambit", "✓ No arcade action needed")
+
         # ── Step 5: Specialist seats ──────────────────────────────────────────
         specialist_output = ""
 
@@ -354,6 +452,9 @@ Specialist output: {specialist_output}
 External service data:
 {external_data if external_data else "None"}
 
+Arcade data:
+{arcade_data if arcade_data else "None"}
+
 Plan: {plan}"""
 
         full_response = []
@@ -380,6 +481,7 @@ Plan: {plan}"""
             ["sentinel", "navigator"]
             + (["witness"] if memory_context else [])
             + (["hermes"] if external_data else [])
+            + (["gambit"] if arcade_data else [])
             + [s for s in ["forge", "oracle", "architect"] if s in seats_needed]
             + ["weaver"]
         )
