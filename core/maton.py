@@ -67,6 +67,17 @@ API_GUIDES: dict[str, str] = {
 }
 
 
+
+AI_LOBBY_MANIFEST = """
+AI Lobby (http://localhost:8006) — Central agent hub:
+  GET  /agents              list all 26+ registered AI agents
+  POST /agents/register     register {id,name,system,role,url,capabilities}
+  POST /broadcast           broadcast to all agents {from,content}
+  WS   ws://localhost:8006/room  real-time agent room
+Systems: One2lvOS Core(:3002), SAC(:3003), AI Arcade(:8003),
+         Lumenis v7(:8005), SteamOS Dashboard(:8080), Gateway(:8888)
+"""
+
 class MatonBridge:
     """
     Gateway to 13 connected external services via Maton.
